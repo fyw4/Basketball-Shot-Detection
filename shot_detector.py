@@ -48,7 +48,6 @@ class Shot_Detector:
         self.attempts = 0
         self.makes = 0
 
-
     def run(self) -> tuple[int, int]:
         '''
             PERFORM SHOT DETECTION
@@ -71,25 +70,33 @@ class Shot_Detector:
             self.frame_count += 1
 
             # PROCESS EVERY STEP FRAMES
-            if self.frame_count % self.step == 0:
+            if self.frame_count % self.step == 0: #每step帧处理一次，比如step=2则每两帧处理一次
 
-                self.clean_detections()
+                self.clean_detections() # 清除过时的检测结果：移除超过20帧未检测到的球和篮筐；限制球的检测记录不超过30条
 
                 # DETECT OBJECTS
-                results = self.model.predict(frame, conf=0.2, stream=True, verbose=self.verbose)
-                class_names = self.model.names
+                '''
+                #result包含检测所有对象信息，包括：
+                边界框坐标
+                类别标签
+                置信度分数
+                其他检测元数据
+
+                '''
+                results = self.model.predict(frame, conf=0.2, stream=True, verbose=self.verbose) #置信程度设置为0.2
+                class_names = self.model.names #获取模型的类别名称列表，例如["ball", "hoop"]
                 for r in results:
                     for box in r.boxes:
 
                         # DETECTED OBJECT INFO
-                        x1, y1, x2, y2 = box.xyxy[0]
+                        x1, y1, x2, y2 = box.xyxy[0] #获取检测框的左上角和右下角坐标，box.xyxy[0]返回一个包含四个元素的列表，分别是x1, y1, x2, y2
                         x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
                         w, h = x2 - x1, y2 - y1
                         center = (int(x1 + w / 2), int(y1 + h / 2))
-                        cls = int(box.cls[0].tolist())
-                        cls_name = class_names[cls]
-                        conf = int(box.conf[0].tolist()*100) / 100
 
+                        cls = int(box.cls[0].tolist()) #获取检测框的类别标签，box.cls[0]返回一个包含一个元素的列表，元素是类别标签的索引，tolist()将其转换为Python的整数类型
+                        cls_name = class_names[cls] #根据类别标签获取类别名称:例如，cls=0可能对应“ball”，cls=1可能对应“hoop”
+                        conf = int(box.conf[0].tolist()*100) / 100 #获取检测框的置信度分数，box.conf[0]返回一个包含一个元素的列表，元素是置信度分数，tolist()将其转换为Python的浮点数类型
 
                         # STORE DETECTED OBJECT IN CORRECT CLASS
                         object = DetectedObject(center[0], center[1], w, h, self.frame_count, conf)
@@ -108,24 +115,27 @@ class Shot_Detector:
 
                         # DRAW OBJECT INFO
                         if self.display_object_info:
-                            font = cv2.FONT_HERSHEY_SIMPLEX
+                            font = cv2.FONT_HERSHEY_SIMPLEX #定义字体样式，SIMPLEX 表示"简单"或"标准"的字体样式
                             text = f"INDEX: {index}, CLASS: {cls_name}, CONF: {conf}"
                             text_size, _ = cv2.getTextSize(text, font, 0.5, 1)
-                            text_x = x1 + (x2 - x1) // 2 - text_size[0] // 2
+                            text_x = x1 + (x2 - x1) // 2 - text_size[0] // 2 #文本水平居中于检测框，x1是检测框左上角的x坐标，x2是检测框右下角的x坐标，(x2 - x1) // 2计算检测框的宽度的一半，text_size[0]是文本的宽度的一半
                             text_y = y1 - 5
 
                             background_x1 = text_x - 5
-                            background_y1 = text_y - text_size[1] - 5
-                            background_x2 = text_x + text_size[0] + 5
+                            background_y1 = text_y - text_size[1] - 5 # text_size[1] 是文本的高度
+                            background_x2 = text_x + text_size[0] + 5 # text_size[0] 是文本的宽度
                             background_y2 = text_y + 5
 
+                            # 绘制文本背景矩形，使用黑色填充，并在其上绘制文本信息，使用绿色字体显示对象的索引、类别和置信度分数
                             cv2.rectangle(frame, (background_x1, background_y1), (background_x2, background_y2), (0, 0, 0), -1)
                             cv2.putText(frame, text, (text_x, text_y), font, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
                         # DRAW BOX AROUND OBJECT
+                        # 绘制检测到的对象的边界框，使用绿色矩形框表示，边界框的坐标由x1, y1, x2, y2定义
                         frame = cv2.rectangle(frame, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=2)
 
                         # DISPLAY STATS
+                        # 显示当前检测到的球和篮筐的数量，以及成功次数和总次数的百分比
                         percent = 0 if self.attempts == 0 else self.makes / self.attempts * 100
                         cv2.putText(frame, f'{self.makes}/{self.attempts} {percent:.2f}%', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 0), 8)
                         cv2.putText(frame, f'{self.makes}/{self.attempts} {percent:.2f}%', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 2)
@@ -138,7 +148,6 @@ class Shot_Detector:
             out.release()
 
         return self.makes, self.attempts
-
 
     def add_hoop(self, hoop: DetectedObject) -> int:
         '''

@@ -25,6 +25,7 @@ class Shot_Detector:
     def __init__(self, source: str, output_path: str | None = None, step: int = 1, display_object_info: bool = True, model: str = './bball_model.pt', verbose: bool = False) -> None:
 
         # SET PARAMETERS
+        self.verbose = verbose
         self.model = YOLO(model, verbose=self.verbose)
         self.source = cv2.VideoCapture(source)
         self.output_path = output_path
@@ -43,14 +44,14 @@ class Shot_Detector:
         # BALLS IN THE AREA OF A HOOP
         self.up_ball = []
         self.down_ball = []
-        
+
         self.attempts = 0
         self.makes = 0
-    
+
 
     def run(self) -> tuple[int, int]:
-        ''' 
-            PERFORM SHOT DETECTION 
+        '''
+            PERFORM SHOT DETECTION
 
             returns: makes, attempts
         '''
@@ -65,14 +66,14 @@ class Shot_Detector:
 
         while True:
             ret, frame = self.source.read()
-            if not ret: 
+            if not ret:
                 break
             self.frame_count += 1
 
             # PROCESS EVERY STEP FRAMES
             if self.frame_count % self.step == 0:
 
-                self.clean_detections()  
+                self.clean_detections()
 
                 # DETECT OBJECTS
                 results = self.model.predict(frame, conf=0.2, stream=True, verbose=self.verbose)
@@ -89,7 +90,7 @@ class Shot_Detector:
                         cls_name = class_names[cls]
                         conf = int(box.conf[0].tolist()*100) / 100
 
-                        
+
                         # STORE DETECTED OBJECT IN CORRECT CLASS
                         object = DetectedObject(center[0], center[1], w, h, self.frame_count, conf)
                         if cls == 1:
@@ -104,7 +105,7 @@ class Shot_Detector:
                         self.detect_up()
                         self.detect_down()
                         self.update_score()
-                        
+
                         # DRAW OBJECT INFO
                         if self.display_object_info:
                             font = cv2.FONT_HERSHEY_SIMPLEX
@@ -120,7 +121,7 @@ class Shot_Detector:
 
                             cv2.rectangle(frame, (background_x1, background_y1), (background_x2, background_y2), (0, 0, 0), -1)
                             cv2.putText(frame, text, (text_x, text_y), font, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
-                        
+
                         # DRAW BOX AROUND OBJECT
                         frame = cv2.rectangle(frame, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=2)
 
@@ -129,9 +130,9 @@ class Shot_Detector:
                         cv2.putText(frame, f'{self.makes}/{self.attempts} {percent:.2f}%', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 0), 8)
                         cv2.putText(frame, f'{self.makes}/{self.attempts} {percent:.2f}%', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 2)
 
-                    if self.output_path: 
+                    if self.output_path:
                         out.write(frame)
-                   
+
         self.source.release()
         if self.output_path:
             out.release()
@@ -145,7 +146,7 @@ class Shot_Detector:
 
             PARAMETERS:
                 hoop - DetectedObject object representing the hoop detected in the current frame
-            
+
             RETURNS:
                 key of detected hoop in hoops dictionary. Returns None if not added.
         '''
@@ -158,7 +159,7 @@ class Shot_Detector:
             self.hoops[self.hoopUid] = hoop
             self.hoopUid += 1
             return self.hoopUid - 1
-        
+
         # DETERMINE IF HOOP ALREADY DETECTED
         x, y = hoop.x, hoop.y
         for hoopKey, detectedHoop in self.hoops.items():
@@ -178,32 +179,30 @@ class Shot_Detector:
         self.hoopUid += 1
         return self.hoopUid-1
 
-
-
     def add_ball(self, ball: DetectedObject) -> int:
         '''
             Adds a detected ball to the balls dictionary. If the ball is already detected, adds to the detected ball.
 
             Paramaters:
                 ball - DetectedObject object representing the ball detected in the current frame
-            
+
             RETURNS:
                 key of detected ball in balls dictionary. Returns None if not added.
         '''
 
         if ball.conf < 0.4 and not (self.hoop_area(ball) and ball.conf > 0.3):
             return None
-        
+
         # NO BALLS TO CHECK => ADD TO BALLS
         if len(self.balls) < 1:
             self.balls[self.ballUid] = DetectedBall(ball)
             self.ballUid += 1
             return 0
-        
+
         # DETERMINE IF BALL ALREADY DETECTED
         x, y = ball.x, ball.y
         valid_ball = []
-        for ballKey, detectedBall in self.balls.items():   
+        for ballKey, detectedBall in self.balls.items():
             # CALCULATE DISTANCE B/W THE BALLS
             detectedBallPrev = detectedBall.get_last_detection()
             x_, y_ = detectedBallPrev.x, detectedBallPrev.y
@@ -223,41 +222,40 @@ class Shot_Detector:
                     if distance < valid_ball[1]:
                         valid_ball[0] = ballKey
                         valid_ball[1] = distance
-        
+
         # VALID BALL FOUND => ADD BALL TO VALID BALL
         if len(valid_ball) == 2:
             self.balls[valid_ball[0]].add_detection(ball)
             return valid_ball[0]
-        
+
         # NO VALID BALLS => ADD TO BALLS
         self.balls[self.ballUid] = DetectedBall(ball)
         self.ballUid += 1
         return self.ballUid - 1
-    
 
     def detect_up(self) -> None:
         '''
             Detects if a ball is in the area of a backboard
         '''
-        
+
         # ALL BALLS ARE DETECTED AS UP => NOTHING TO CHECK
         if len(self.up_ball) == len(self.balls):
             return
 
         # FIND BALL IN AREA OF A HOOPS BACKBOARD
         for ballKey, ball in self.balls.items():
-            
+
             # BALL IN UP_BALL OR DOWN_BALL => CONTINUE
             if ballKey in [ball_[0] for ball_ in self.up_ball] or ballKey in [ball_[0] for ball_ in self.down_ball] or len(ball.detections) < 3:
                 continue
 
             for hoopKey, hoop in self.hoops.items():
-                prevBallDetection = ball.get_last_detection() 
+                prevBallDetection = ball.get_last_detection()
 
                 # SIZE(BALL) > SIZE(HOOP) => CONTINUE
                 if hoop.w * hoop.h < prevBallDetection.w * prevBallDetection.h:
                     continue
-                
+
                 # CAlCULATE COORDINATES OF BACKBOARD
                 x1 = int(hoop.x - (hoop.w * 2))
                 x2 = int(x1 + (hoop.w * 4))
@@ -267,26 +265,23 @@ class Shot_Detector:
                 # BALL IN AREA OF BACKBOARD => ADD TO UP_BALL
                 if x1 < prevBallDetection.x < x2 and y2 < prevBallDetection.y < y1:
                     self.up_ball.append([ballKey, hoopKey])
-    
 
     def detect_down(self) -> None:
         '''
             Detects if a ball in up_ball is below the hoop. Adds the ball-hoop pair to down_ball, and removes it from the up_ball list.
         '''
-        
+
         # UP_BALL EMPTY => NOTHING TO CHECK
         if len(self.up_ball) == 0:
             return
-           
-
 
         for pair in deepcopy(self.up_ball):
-            
+
             # VALIDATE PAIR
             if len(pair) < 2 or None in pair:
                 self.up_ball.remove(pair)
                 continue
-            
+
             ballKey, hoopKey = pair
 
             # VALIDATE BALL AND HOOP
@@ -296,13 +291,12 @@ class Shot_Detector:
 
             hoop = self.hoops[hoopKey]
             ball = self.balls[ballKey]
-            
+
             # BALL BELOW HOOP => ADD TO DOWN_BALL
             y1 = int(hoop.y + (hoop.h / 2)) # BOTTOM OF NET
             if ball.get_last_detection().y > y1:
                 self.down_ball.append(pair)
                 self.up_ball.remove(pair)
-
 
     def update_score(self) -> None:
         '''
@@ -319,7 +313,7 @@ class Shot_Detector:
             if ballKey not in self.balls or hoopKey not in self.hoops:
                 self.down_ball.remove([ballKey, hoopKey])
                 continue
-            
+
             hoop = self.hoops[hoopKey]
             ball = self.balls[ballKey]
 
@@ -337,12 +331,12 @@ class Shot_Detector:
                 if b.y < hoop_top:
                     x2, y2 = b.x, b.y
                     break
-            
+
             # IF NO POSITION ABOVE HOOP => REMOVE PAIR FROM DOWN_BALL
             if x2 == None or y2 == None:
                 self.down_ball.remove([ballKey, hoopKey])
                 continue
-            
+
             # CALCULATE LINE OF BALL WHEN ABOVE HOOP & BELOW
             m = (y2 - y1) / (x2 - x1)
             b = y1 - (m * x1)
@@ -351,14 +345,13 @@ class Shot_Detector:
             x_pred = (y_hoop - b) / m
 
             # BALL BETWEEN RIM WHEN AT HOOP HEIGHT => INCREMENT MAKES
-            x1_rim = x_hoop - (hoop.w/2) 
-            x2_rim = x_hoop + (hoop.w/2) 
+            x1_rim = x_hoop - (hoop.w/2)
+            x2_rim = x_hoop + (hoop.w/2)
             if x1_rim < x_pred < x2_rim:
-                self.makes += 1 
-            
+                self.makes += 1
+
             self.attempts += 1
             self.down_ball.remove([ballKey, hoopKey])
-    
 
     def clean_detections(self) -> None:
         '''
@@ -366,16 +359,15 @@ class Shot_Detector:
         '''
 
         # REMOVE OLD DETECTIONS
-        for ballkey, ball in deepcopy(self.balls).items():
-            if self.frame_count - ball.get_last_detection().frame > 20:
-                self.balls.pop(ballkey)
-            if len(ball.detections) > 30:
-                ball.detections.popleft()
-        
+        for ballkey, ball in deepcopy(self.balls).items(): #保证遍历时删除或增加数据不对造成错误；获取拷贝后字典的所有键值对
+            if self.frame_count - ball.get_last_detection().frame > 20: #若球的最后一次检测到的帧数与当前帧数之差大于20帧
+                self.balls.pop(ballkey) #从字典中删除该球
+            if len(ball.detections) > 30: # 若球的检测记录数大于30条
+                ball.detections.popleft() #从球的检测记录中删除最早的一条记录
+
         for hoopKey, hoop in deepcopy(self.hoops).items():
-            if self.frame_count - hoop.frame > 20:
-                self.hoops.pop(hoopKey)
-        
+            if self.frame_count - hoop.frame > 20: #若篮筐的最后一次检测到的帧数与当前帧数之差大于20帧
+                self.hoops.pop(hoopKey) #从字典中删除该篮筐
 
     def hoop_area(self, ball: DetectedObject) -> bool:
         '''

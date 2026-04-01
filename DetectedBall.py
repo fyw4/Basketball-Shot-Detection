@@ -3,7 +3,7 @@ from DetectedObject import DetectedObject
 
 class DetectedBall:
     def __init__(self, ball: DetectedObject = None):
-        self.detections = deque([]) if not ball else deque([ball])
+        self.detections = deque([]) if not ball else deque([ball]) # 初始化时，如果提供了球的位置，就添加到检测队列中
 
     def __eq__(self, other):
         if not other:
@@ -14,10 +14,10 @@ class DetectedBall:
             if self.detections[i] != other.detections[i]:
                 return False
         return True
-        
-    
+
+
     def add_detection(self, ball_position: DetectedObject):
         self.detections.append(ball_position)
-    
+
     def get_last_detection(self):
         return self.detections[-1]

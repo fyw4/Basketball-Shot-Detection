@@ -36,7 +36,7 @@ class Shot_Detector:
         self.hoops = {} # 所有检测到的篮筐 ，key为唯一标识符，value为检测到的篮筐对象
         self.hoopUid = 0 # 篮筐的唯一标识符
 
-        self.balls = {} # 所有检测到的球
+        self.balls = {} # 所有检测到的球，key为唯一标识符，value为DetectedBall对象队列，包含该球的检测历史记录
         self.ballUid = 0 # 球的唯一标识符
 
         self.frame_count = 0 # 当前帧序号
@@ -201,43 +201,44 @@ class Shot_Detector:
                 key of detected ball in balls dictionary. Returns None if not added.
         '''
 
-        if ball.conf < 0.4 and not (self.hoop_area(ball) and ball.conf > 0.3):
+        if ball.conf < 0.4 and not (self.hoop_area(ball) and ball.conf > 0.3): #如果球的信度小于0.4且不在篮筐区域，也不认为是球
             return None
 
         # NO BALLS TO CHECK => ADD TO BALLS
         if len(self.balls) < 1:
-            self.balls[self.ballUid] = DetectedBall(ball)
+            self.balls[self.ballUid] = DetectedBall(ball) # 初始化时，如果提供了球的位置，就添加到检测队列中
             self.ballUid += 1
             return 0
 
         # DETERMINE IF BALL ALREADY DETECTED
         x, y = ball.x, ball.y
-        valid_ball = []
+        valid_ball = [] #列表list
         for ballKey, detectedBall in self.balls.items():
             # CALCULATE DISTANCE B/W THE BALLS
-            detectedBallPrev = detectedBall.get_last_detection()
+            detectedBallPrev = detectedBall.get_last_detection() #获取球最后的位置数据
             x_, y_ = detectedBallPrev.x, detectedBallPrev.y
-            distance = np.sqrt( ((x_ - x)**2) + ((y_- y)**2) )
-            w_, h_ = detectedBallPrev.w, detectedBallPrev.h
-            hypotenuse = np.sqrt( (w_**2) + (h_**2) )
+            distance = np.sqrt( ((x_ - x)**2) + ((y_- y)**2) ) #求当前球与已检测的球之间的距离
+            w_, h_ = detectedBallPrev.w, detectedBallPrev.h #获取已检测的球的宽度和高度
+            hypotenuse = np.sqrt( (w_**2) + (h_**2) ) #求球对角线长度
 
             # DETERMINE IF BALL BELONGS TO DETECTED BALL
+            #若当前球与已检测的球之间的距离小于对角线长度的2倍，或者当前球是向上的球，且当前球与已检测的球之间的距离小于对角线长度的4倍，认为是同一个球
             if distance < hypotenuse*2 or (ballKey in [b[0] for b in self.up_ball] and distance < hypotenuse*4):
-                if len(self.balls) < 2:
-                    detectedBall.add_detection(ball)
+                if len(self.balls) < 2: #检查当前系统中已跟踪的篮球数量是否少于2个
+                    detectedBall.add_detection(ball)  #将新检测到的篮球位置添加到已存在的篮球跟踪记录中
                     return ballKey
-                elif not valid_ball:
+                elif not valid_ball: # 如果当前系统中没有已跟踪的篮球，那么就将当前检测到的篮球位置添加到 valid_ball 中
                     valid_ball.append(ballKey)
                     valid_ball.append(distance)
                 else:
-                    if distance < valid_ball[1]:
+                    if distance < valid_ball[1]: #如果当前检测到的篮球位置与已存在的篮球跟踪记录之间的距离小于 valid_ball 中记录的距离，那么就更新 valid_ball 中的篮球键值对和距离
                         valid_ball[0] = ballKey
                         valid_ball[1] = distance
 
         # VALID BALL FOUND => ADD BALL TO VALID BALL
-        if len(valid_ball) == 2:
-            self.balls[valid_ball[0]].add_detection(ball)
-            return valid_ball[0]
+        if len(valid_ball) == 2:# 找到了有效匹配
+            self.balls[valid_ball[0]].add_detection(ball) # 更新篮球位置
+            return valid_ball[0]  # 返回匹配的篮球键
 
         # NO VALID BALLS => ADD TO BALLS
         self.balls[self.ballUid] = DetectedBall(ball)

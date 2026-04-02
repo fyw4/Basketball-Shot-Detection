@@ -164,7 +164,7 @@ class Shot_Detector:
             return None
 
         # NO HOOPS TO CHECK => ADD TO HOOPS
-        if len(self.hoops) == 0:
+        if len(self.hoops) == 0: #如果当前系统中没有已跟踪的篮筐，那么就将当前检测到的篮筐添加到 hoops 字典中，并返回该篮筐的键值
             self.hoops[self.hoopUid] = hoop
             self.hoopUid += 1
             return self.hoopUid - 1
@@ -222,12 +222,12 @@ class Shot_Detector:
             hypotenuse = np.sqrt( (w_**2) + (h_**2) ) #求球对角线长度
 
             # DETERMINE IF BALL BELONGS TO DETECTED BALL
-            #若当前球与已检测的球之间的距离小于对角线长度的2倍，或者当前球是向上的球，且当前球与已检测的球之间的距离小于对角线长度的4倍，认为是同一个球
+            #若当前球与已检测的球之间的距离小于对角线长度的2倍，或者当前球是向上的球，且当前球与已检测的球之间的距离小于对角线长度的4倍，则认为是同一个球
             if distance < hypotenuse*2 or (ballKey in [b[0] for b in self.up_ball] and distance < hypotenuse*4):
                 if len(self.balls) < 2: #检查当前系统中已跟踪的篮球数量是否少于2个
-                    detectedBall.add_detection(ball)  #将新检测到的篮球位置添加到已存在的篮球跟踪记录中
+                    detectedBall.add_detection(ball)  #这个待检测的篮球就是唯一已跟踪的球
                     return ballKey
-                elif not valid_ball: # 如果当前系统中没有已跟踪的篮球，那么就将当前检测到的篮球位置添加到 valid_ball 中
+                elif not valid_ball: # 判断valid_ball是否为空，如果当前系统中没有已跟踪的篮球，那么就将当前检测到的篮球位置添加到 valid_ball 中
                     valid_ball.append(ballKey)
                     valid_ball.append(distance)
                 else:
@@ -317,32 +317,33 @@ class Shot_Detector:
         '''
 
         # DOWN_BALL EMPTY => NOTHING TO CHECK
-        if len(self.down_ball) == 0:
+        if len(self.down_ball) == 0: #没有检测到落下的球，表示没有球进框
             return
 
         for ballKey, hoopKey in deepcopy(self.down_ball):
 
             # VALIDATE BALL AND HOOP
-            if ballKey not in self.balls or hoopKey not in self.hoops:
+            if ballKey not in self.balls or hoopKey not in self.hoops: #如果球或篮筐的键值不在当前系统中，说明这个键值对无效，继续检查下一个键值对
                 self.down_ball.remove([ballKey, hoopKey])
                 continue
 
-            hoop = self.hoops[hoopKey]
-            ball = self.balls[ballKey]
+            hoop = self.hoops[hoopKey] # 获取当前检测到的篮筐
+            ball = self.balls[ballKey] # 获取当前检测到的球
 
             # BALL INFORMATION
             prevDetection = ball.get_last_detection()
-            x1, y1 = prevDetection.x, prevDetection.y
-            x2, y2 = None, None
+            x1, y1 = prevDetection.x, prevDetection.y #球最后位置的x y坐标
+            x2, y2 = None, None #球高于篮筐位置的x y坐标，初始化为 None
 
             # HOOP INFORMATION
             x_hoop, y_hoop = hoop.x, hoop.y
             hoop_top = y_hoop - (hoop.h / 2)
 
             # FIND THE POSITION OF THE BALL WHEN IT WAS ABOVE THE HOOP
+            # 找到球在高于筐顶部的位置
             for b in reversed(ball.detections): #反向遍历篮球的检测历史记录
                 if b.y < hoop_top:  # 如果球的位置高于篮筐顶部
-                    x2, y2 = b.x, b.y  # 记录这个位置
+                    x2, y2 = b.x, b.y  # 记录球在高于篮筐位置的 x y 坐标
                     break
 
             # IF NO POSITION ABOVE HOOP => REMOVE PAIR FROM DOWN_BALL
@@ -351,13 +352,16 @@ class Shot_Detector:
                 continue
 
             # CALCULATE LINE OF BALL WHEN ABOVE HOOP & BELOW
-            m = (y2 - y1) / (x2 - x1)# 计算球在高于篮筐位置和低于篮筐位置之间的斜率，避免除以零的情况，如果 x2 和 x1 相等，则斜率设为0
-            b = y1 - (m * x1)# 计算球在高于篮筐位置和低于篮筐位置之间的截距，避免除以零的情况，如果 x2 和 x1 相等，则截距设为0
+            #算出斜率和截距
+            m = (y2 - y1) / (x2 - x1)# 计算球在高于篮筐位置和低于篮筐位置之间的斜率
+            b = y1 - (m * x1)# 计算球在高于篮筐位置和低于篮筐位置之间的截距
 
             # CALCULATE X-COORDINATE OF BALL WHEN IT WAS AT HOOP HEIGHT
-            x_pred = (y_hoop - b) / m # 计算球在 hoop筐中心高度下的 x 坐标，避免除以零的情况，如果 m 等于0，则 x_pred 等于 b
+            #通过上面的斜率和截距，根据篮筐的y坐标算出篮筐的x坐标
+            x_pred = (y_hoop - b) / m # 计算球在 hoop筐中心高度下的 x 坐标
 
             # BALL BETWEEN RIM WHEN AT HOOP HEIGHT => INCREMENT MAKES
+            # 进球判断
             x1_rim = x_hoop - (hoop.w/2) # 篮筐的左边界：hoop 的中心减去 hoop 的宽度的一半
             x2_rim = x_hoop + (hoop.w/2) # 篮筐的右边界：hoop 的中心加上 hoop 的宽度的一半
             if x1_rim < x_pred < x2_rim: # 如果球在 hoop筐中心高度下的 x 坐标在篮筐的左右边界之间

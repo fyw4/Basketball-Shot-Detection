@@ -91,18 +91,34 @@ class Shot_Detector:
                 置信度分数
                 其他检测元数据
 
+                #box包含：
+                # 坐标格式（不同表示方式）
+                box.xyxy        # [x1, y1, x2, y2] 绝对坐标
+                box.xywh        # [x, y, width, height] 中心点+宽高
+                box.xyxyn       # 归一化坐标 [0.0-1.0]
+                box.xywhn       # 归一化中心点+宽高
+
+                # 对象信息
+                box.cls         # 类别ID
+                box.conf        # 置信度分数
+                box.id          # 跟踪ID（如果启用跟踪）
+
+                # 数据访问方式
+                box.xyxy[0]     # 第一个检测框的坐标（张量格式）
+                box.cls[0]      # 第一个检测框的类别
+                box.conf[0]     # 第一个检测框的置信度
                 '''
                 results = self.model.predict(frame, conf=0.2, stream=True, verbose=self.verbose) #置信程度设置为0.2
                 class_names = self.model.names #获取模型的类别名称列表，例如["ball", "hoop"]
                 # 遍历检测结果
                 for r in results:
                     # 处理每个检测结果(检测框信息)
-                    for box in r.boxes:
+                    for box in r.boxes: # r.boxes 是一个包含多个边界框对象的容器，每个边界框代表一个检测到的对象
                         # DETECTED OBJECT INFO
                         x1, y1, x2, y2 = box.xyxy[0] #获取检测框的左上角和右下角坐标，box.xyxy[0]返回一个包含四个元素的列表，分别是x1, y1, x2, y2
                         x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
                         w, h = x2 - x1, y2 - y1
-                        center = (int(x1 + w / 2), int(y1 + h / 2))
+                        center = (int(x1 + w / 2), int(y1 + h / 2)) #框中心点坐标
 
                         cls = int(box.cls[0].tolist()) #获取检测框的类别标签，box.cls[0]返回一个包含一个元素的列表，元素是类别标签的索引，tolist()将其转换为Python的整数类型
                         cls_name = class_names[cls] #根据类别标签获取类别名称:例如，cls=0可能对应“ball”，cls=1可能对应“hoop”
@@ -119,8 +135,8 @@ class Shot_Detector:
                             continue
 
                         # PERFORM SHOT DETECTION
-                        self.detect_up() # 球进入篮板上方区域判定为方向向上
-                        self.detect_down() # 低于篮筐判定为方向向下
+                        self.detect_up() # 球高于 篮框 上方区域判定为方向向上
+                        self.detect_down() # 球低于 篮筐 判定为方向向下
                         self.update_score() # 更新投篮统计信息
 
                         # DRAW OBJECT INFO
@@ -153,7 +169,7 @@ class Shot_Detector:
                     if self.output_path:
                         out.write(frame)
 
-        #进球视频记录
+        #分析完整个视频后，通过进球关键帧将所有进球视频分段保存
         for goal_frame in self.goal_frames:
             self.save_goal_clip(goal_frame, self.fps * 3, self.fps) #保存从进球前120帧开始的120帧视频片段，假设fps为30，则保存从进球前4秒开始的4秒视频片段
 

@@ -172,6 +172,7 @@ class Shot_Detector:
         #分析完整个视频后，通过进球关键帧将所有进球视频分段保存
         for goal_frame in self.goal_frames:
             self.save_goal_clip(goal_frame, self.fps * 3, self.fps) #保存从进球前120帧开始的120帧视频片段，假设fps为30，则保存从进球前4秒开始的4秒视频片段
+            print(f"Saved goal clip for frame {goal_frame} successfully.")
 
         self.source.release()
         if self.output_path:

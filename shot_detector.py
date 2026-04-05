@@ -5,6 +5,7 @@ from copy import deepcopy
 from DetectedObject import DetectedObject
 from DetectedBall import DetectedBall
 import time
+import os
 
 class Shot_Detector:
     '''
@@ -38,7 +39,7 @@ class Shot_Detector:
         self.display_object_info = display_object_info
         self.step = step
         self.record = record
-        self.device = device
+        self.device = device        
 
         self.fps = None
         self.frame_width = None
@@ -63,12 +64,21 @@ class Shot_Detector:
 
         self.goal_frames = [] # 进球帧序号列表
 
+        #如果存在goal_clips目录
+        if os.path.exists("goal_clips"):
+            for file in os.listdir("goal_clips"):
+                os.remove(os.path.join("goal_clips", file))
+        else:
+            os.makedirs("goal_clips", exist_ok=True) # 进球视频存储目录
+
     def run(self) -> tuple[int, int]:
         '''
             PERFORM SHOT DETECTION
 
             returns: makes, attempts
         '''
+
+        start_time = time.time()# 开始时间
 
         # VIDEO PROPERTIES
         self.fps = int(self.source.get(cv2.CAP_PROP_FPS))
@@ -188,6 +198,10 @@ class Shot_Detector:
         if self.record:
             if self.output_path:
                 out.release()
+
+        # 计算运行时间
+        end_time = time.time()
+        print(f"Total time: {end_time - start_time:.2f} seconds")
 
         if not self.display_object_info:
             print("not setting created video option, makes and attempts are 0")
@@ -460,8 +474,10 @@ class Shot_Detector:
         # 设置视频读取位置
         self.source.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
 
+        goal_path = os.path.join(self.output_path, f'goal_{goal_frame}.mp4')
+
         # 创建进球视频
-        goal_video = cv2.VideoWriter(f'goal_{goal_frame}.mp4', self.fourcc, self.fps, (self.frame_width, self.frame_height))
+        goal_video = cv2.VideoWriter(goal_path, self.fourcc, self.fps, (self.frame_width, self.frame_height))
 
         for i in range(num_frames_before + num_frames_after):
             ret, frame = self.source.read()

@@ -24,9 +24,11 @@ class Shot_Detector:
 
             record - used to record the video 
 
+            device - device to use for detection, 'cpu' or 'cuda'
+
     '''
 
-    def __init__(self, source: str, output_path: str | None = None, step: int = 1, display_object_info: bool = True, model: str = './bball_model.pt', verbose: bool = False, record: bool = False) -> None:
+    def __init__(self, source: str, output_path: str | None = None, step: int = 1, display_object_info: bool = True, model: str = './bball_model.pt', verbose: bool = False, record: bool = False, device: str = 'cpu') -> None:
 
         # SET PARAMETERS
         self.verbose = verbose
@@ -36,6 +38,7 @@ class Shot_Detector:
         self.display_object_info = display_object_info
         self.step = step
         self.record = record
+        self.device = device
 
         self.fps = None
         self.frame_width = None
@@ -114,7 +117,7 @@ class Shot_Detector:
                 box.cls[0]      # 第一个检测框的类别
                 box.conf[0]     # 第一个检测框的置信度
                 '''
-                results = self.model.predict(frame, conf=0.2, stream=True, verbose=self.verbose) #置信程度设置为0.2
+                results = self.model.predict(frame, device=self.device, conf=0.2, stream=True, verbose=self.verbose) #置信程度设置为0.2
                 class_names = self.model.names #获取模型的类别名称列表，例如["ball", "hoop"]
                 # 遍历检测结果
                 for r in results:

@@ -21,9 +21,12 @@ class Shot_Detector:
             model - path of a yolo object detection model
 
             verbose - YOLO verbose parameter
+
+            record - used to record the video 
+
     '''
 
-    def __init__(self, source: str, output_path: str | None = None, step: int = 1, display_object_info: bool = True, model: str = './bball_model.pt', verbose: bool = False) -> None:
+    def __init__(self, source: str, output_path: str | None = None, step: int = 1, display_object_info: bool = True, model: str = './bball_model.pt', verbose: bool = False, record: bool = False) -> None:
 
         # SET PARAMETERS
         self.verbose = verbose
@@ -32,6 +35,7 @@ class Shot_Detector:
         self.output_path = output_path
         self.display_object_info = display_object_info
         self.step = step
+        self.record = record
 
         self.fps = None
         self.frame_width = None
@@ -68,8 +72,10 @@ class Shot_Detector:
         self.frame_width = int(self.source.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.frame_height = int(self.source.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        if self.output_path:
-            out = cv2.VideoWriter(f'{self.output_path}.mp4', self.fourcc, self.fps, (self.frame_width, self.frame_height))
+        
+        if self.record:
+            if self.output_path:
+                out = cv2.VideoWriter(f'{self.output_path}.mp4', self.fourcc, self.fps, (self.frame_width, self.frame_height))
 
         print(f"fps = {self.fps}")
         while True:
@@ -156,18 +162,19 @@ class Shot_Detector:
                             cv2.rectangle(frame, (background_x1, background_y1), (background_x2, background_y2), (0, 0, 0), -1)
                             cv2.putText(frame, text, (text_x, text_y), font, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
-                        # DRAW BOX AROUND OBJECT
-                        # 绘制检测到的对象的边界框，使用绿色矩形框表示，边界框的坐标由x1, y1, x2, y2定义
-                        frame = cv2.rectangle(frame, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=2)
+                            # DRAW BOX AROUND OBJECT
+                            # 绘制检测到的对象的边界框，使用绿色矩形框表示，边界框的坐标由x1, y1, x2, y2定义
+                            frame = cv2.rectangle(frame, (x1, y1), (x2, y2), color=(0, 255, 0), thickness=2)
 
-                        # DISPLAY STATS
-                        # 显示当前检测到的球和篮筐的数量，以及成功次数和总次数的百分比
-                        percent = 0 if self.attempts == 0 else self.makes / self.attempts * 100
-                        cv2.putText(frame, f'{self.makes}/{self.attempts} {percent:.2f}%', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 0), 8)
-                        cv2.putText(frame, f'{self.makes}/{self.attempts} {percent:.2f}%', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 2)
+                            # DISPLAY STATS
+                            # 显示当前检测到的球和篮筐的数量，以及成功次数和总次数的百分比
+                            percent = 0 if self.attempts == 0 else self.makes / self.attempts * 100
+                            cv2.putText(frame, f'{self.makes}/{self.attempts} {percent:.2f}%', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 0), 8)
+                            cv2.putText(frame, f'{self.makes}/{self.attempts} {percent:.2f}%', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 2)
 
-                    if self.output_path:
-                        out.write(frame)
+                    if self.record:
+                        if self.output_path:
+                            out.write(frame)
 
         #分析完整个视频后，通过进球关键帧将所有进球视频分段保存
         for goal_frame in self.goal_frames:
@@ -175,9 +182,12 @@ class Shot_Detector:
             print(f"Saved goal clip for frame {goal_frame} successfully.")
 
         self.source.release()
-        if self.output_path:
-            out.release()
+        if self.record:
+            if self.output_path:
+                out.release()
 
+        if not self.display_object_info:
+            print("not setting created video option, makes and attempts are 0")
         return self.makes, self.attempts
 
     def add_hoop(self, hoop: DetectedObject) -> int:

@@ -6,6 +6,7 @@ from DetectedObject import DetectedObject
 from DetectedBall import DetectedBall
 import time
 import os
+import torch
 
 class Shot_Detector:
     '''
@@ -23,7 +24,7 @@ class Shot_Detector:
 
             verbose - YOLO verbose parameter
 
-            record - used to record the video 
+            record - used to record the video
 
             device - device to use for detection, 'cpu' or 'cuda'
 
@@ -36,10 +37,19 @@ class Shot_Detector:
         self.model = YOLO(model, verbose=self.verbose)
         self.source = cv2.VideoCapture(source)
         self.output_path = output_path
+        if os.path.exists(self.output_path):
+            for file in os.listdir(self.output_path):
+                os.remove(os.path.join(self.output_path, file))
+        else:
+            os.makedirs(self.output_path, exist_ok=True) # 进球视频存储目录
         self.display_object_info = display_object_info
         self.step = step
         self.record = record
-        self.device = device        
+        if torch.cuda.is_available():
+            self.device = device
+            print("this device is available, using gpu for detection")
+        else:
+            self.device = 'cpu'
 
         self.fps = None
         self.frame_width = None
@@ -64,13 +74,6 @@ class Shot_Detector:
 
         self.goal_frames = [] # 进球帧序号列表
 
-        #如果存在goal_clips目录
-        if os.path.exists("goal_clips"):
-            for file in os.listdir("goal_clips"):
-                os.remove(os.path.join("goal_clips", file))
-        else:
-            os.makedirs("goal_clips", exist_ok=True) # 进球视频存储目录
-
     def run(self) -> tuple[int, int]:
         '''
             PERFORM SHOT DETECTION
@@ -85,10 +88,10 @@ class Shot_Detector:
         self.frame_width = int(self.source.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.frame_height = int(self.source.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        
+
         if self.record:
-            if self.output_path:
-                out = cv2.VideoWriter(f'{self.output_path}.mp4', self.fourcc, self.fps, (self.frame_width, self.frame_height))
+            record_path = os.path.join(self.output_path, f'detect_record.mp4')
+            out = cv2.VideoWriter(record_path, self.fourcc, self.fps, (self.frame_width, self.frame_height))
 
         print(f"fps = {self.fps}")
         while True:
@@ -186,8 +189,10 @@ class Shot_Detector:
                             cv2.putText(frame, f'{self.makes}/{self.attempts} {percent:.2f}%', (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 2)
 
                     if self.record:
-                        if self.output_path:
-                            out.write(frame)
+                        out.write(frame)
+
+        if self.record:
+            out.release()
 
         #分析完整个视频后，通过进球关键帧将所有进球视频分段保存
         for goal_frame in self.goal_frames:
@@ -195,9 +200,6 @@ class Shot_Detector:
             print(f"Saved goal clip for frame {goal_frame} successfully.")
 
         self.source.release()
-        if self.record:
-            if self.output_path:
-                out.release()
 
         # 计算运行时间
         end_time = time.time()
@@ -464,7 +466,6 @@ class Shot_Detector:
                 return True
 
         return False
-
 
     # 进球视频记录函数
     def save_goal_clip(self, goal_frame, num_frames_before = 120, num_frames_after = 120):

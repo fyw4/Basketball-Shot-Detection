@@ -1,7 +1,6 @@
 # import cupy as cp
 import torch
 import time
-import sys
 
 print(f"PyTorch Version: {torch.__version__}")
 print(f"CUDA available: {torch.cuda.is_available()}")

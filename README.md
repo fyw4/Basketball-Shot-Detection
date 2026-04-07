@@ -23,6 +23,8 @@ Instantiate the `Shot_Detector` class with the necessary parameters:
 - `display_object_info`: Boolean flag to display information about detected objects.
 - `model`: Path to YOLO detection model.
 - `verbose`: YOLO verbose parameter
+- `record`: used to record the video
+- `device`: device to use for detection, 'cpu' or 'cuda'
 
 Use the `.run()` method to run the detection algorithm, and it will return the makes and attempts detected.
 
@@ -31,14 +33,14 @@ Use the `.run()` method to run the detection algorithm, and it will return the m
 ```python
 from shot_detector import Shot_Detector
 
-detector = Shot_Detector(source="path/to/video.mp4", output_path="path/to/output", step=1, display_object_info=True, model="path/to/detection.pt", verbose=False)
+detector = Shot_Detector(source="path/to/video.mp4", output_path="path/to/output", step=1, display_object_info=True, model="path/to/detection.pt", verbose=False, record=True, device="cuda")
 makes, attempts = detector.run()
 print(f"Successful shots: {makes}/{attempts}")
 ```
 
 ## Algorithm Details
 
-The algorithm used to detect shots and makes was inspired by https://github.com/avishah3/AI-Basketball-Shot-Detection-Tracker, but his algorithm lacked the ability to make correct detections with multiple balls and hoops in the camera. I vastly improved this algorithm by adding multiple ball and hoop support, as well as efficiency options. The main idea of the algorithm is to detect when a ball is within the hoop area through detecting the hoop with a YOLOv8 trained model, then calculating the backboard area of the hoop. If a ball is detected in this area, it is considered a shot. Once that ball has gone below that area, a line is created from the last point it was above the rim, to the first point it is below the rim. If this line goes between the ends of the rim, it is considered a make. 
+The algorithm used to detect shots and makes was inspired by https://github.com/avishah3/AI-Basketball-Shot-Detection-Tracker, but his algorithm lacked the ability to make correct detections with multiple balls and hoops in the camera. I vastly improved this algorithm by adding multiple ball and hoop support, as well as efficiency options. The main idea of the algorithm is to detect when a ball is within the hoop area through detecting the hoop with a YOLOv8 trained model, then calculating the backboard area of the hoop. If a ball is detected in this area, it is considered a shot. Once that ball has gone below that area, a line is created from the last point it was above the rim, to the first point it is below the rim. If this line goes between the ends of the rim, it is considered a make.
 
 ### Object Detection
 

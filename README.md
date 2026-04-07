@@ -2,6 +2,8 @@
 
 This project is designed to detect and count basketball shots, distinguishing between successful and unsuccessful attempts. It utilizes an object detection model, specifically YOLO (You Only Look Once), to track basketballs and hoops in a video feed. The primary goal is to determine when a basketball enters the hoop area, indicating a potential shot attempt, and then assess whether the shot was made based on subsequent ball movement.
 
+And this project can record successful basketball shots.
+
 ## Requirements
 
 To use this project, you'll need:

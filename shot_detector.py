@@ -49,6 +49,8 @@ class Shot_Detector:
             self.device = device
             print("this device is available, using gpu for detection")
         else:
+            if device == "cuda":
+                print("this device not spport cuda, using cpu")
             self.device = 'cpu'
 
         self.fps = None

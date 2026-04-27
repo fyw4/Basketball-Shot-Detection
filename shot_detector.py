@@ -37,11 +37,11 @@ class Shot_Detector:
         self.model = YOLO(model, verbose=self.verbose)
         self.source = cv2.VideoCapture(source)
         self.output_path = output_path
-        if os.path.exists(self.output_path):
-            for file in os.listdir(self.output_path):
-                os.remove(os.path.join(self.output_path, file))
-        else:
-            os.makedirs(self.output_path, exist_ok=True) # 进球视频存储目录
+        #if os.path.exists(self.output_path):
+            #for file in os.listdir(self.output_path):
+                #os.remove(os.path.join(self.output_path, file))
+        #else:
+            #os.makedirs(self.output_path, exist_ok=True) # 进球视频存储目录
         self.display_object_info = display_object_info
         self.step = step
         self.record = record
@@ -415,12 +415,15 @@ class Shot_Detector:
 
             # CALCULATE LINE OF BALL WHEN ABOVE HOOP & BELOW
             #算出斜率和截距
-            m = (y2 - y1) / (x2 - x1)# 计算球在高于篮筐位置和低于篮筐位置之间的斜率
-            b = y1 - (m * x1)# 计算球在高于篮筐位置和低于篮筐位置之间的截距
+            if(x1 != x2):
+                m = (y2 - y1) / (x2 - x1)# 计算球在高于篮筐位置和低于篮筐位置之间的斜率
+                b = y1 - (m * x1)# 计算球在高于篮筐位置和低于篮筐位置之间的截距
 
-            # CALCULATE X-COORDINATE OF BALL WHEN IT WAS AT HOOP HEIGHT
-            #通过上面的斜率和截距，根据篮筐的y坐标算出篮筐的x坐标
-            x_pred = (y_hoop - b) / m # 计算球在 hoop筐中心高度下的 x 坐标
+                # CALCULATE X-COORDINATE OF BALL WHEN IT WAS AT HOOP HEIGHT
+                #通过上面的斜率和截距，根据篮筐的y坐标算出篮筐的x坐标
+                x_pred = (y_hoop - b) / m # 计算球在 hoop筐中心高度下的 x 坐标
+            else: # 如果x1 == x2，说明球在高于筐筐顶部的位置，直接将x_pred设为x_hoop
+                x_pred = x_hoop
 
             # BALL BETWEEN RIM WHEN AT HOOP HEIGHT => INCREMENT MAKES
             # 进球判断

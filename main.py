@@ -11,5 +11,6 @@ for file in filelist:
         makes, attempts = detector.run()
         print(f"step is {detector.step}")
         print(f"Successful shots: {makes}/{attempts}")
+        print("-----------------")
 
 time.sleep(10)

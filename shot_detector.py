@@ -42,6 +42,10 @@ class Shot_Detector:
                 #os.remove(os.path.join(self.output_path, file))
         #else:
             #os.makedirs(self.output_path, exist_ok=True) # 进球视频存储目录
+
+        if self.output_path is not None and not os.path.exists(self.output_path):
+            os.makedirs(self.output_path, exist_ok=True) # 进球视频存储目录
+
         self.display_object_info = display_object_info
         self.step = step
         self.record = record

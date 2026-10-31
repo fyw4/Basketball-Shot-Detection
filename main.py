@@ -1,4 +1,4 @@
-#from shot_detector import Shot_Detector
+from shot_detector import Shot_Detector
 import time
 import os
 import tkinter as tk
@@ -89,7 +89,7 @@ tk.Label(
     anchor="w"
 ).pack(side = tk.TOP, anchor = tk.W, padx = 10, pady = 5)
 
-video_formats = (".mp4", ".avi", ".mov", ".mkv")
+video_formats = (".mp4", ".avi", ".mov", ".mkv", ".MOV")
 x_var = tk.StringVar(value=video_formats[0])
 endswith = video_formats[0]
 com = ttk.Combobox(
@@ -124,10 +124,10 @@ def detect_shots():
 
             for file in filelist:
                 if file.endswith(endswith):
-                    #detector = Shot_Detector(source=os.path.join(current_dir, file), output_path=output_path_dir, step=2, display_object_info=True, model="./bball_model.pt", verbose=False, record=True, device="cuda")
-                    #makes, attempts = detector.run()
-                    #print(f"step is {detector.step}")
-                    #print(f"Successful shots: {makes}/{attempts}")
+                    detector = Shot_Detector(source=os.path.join(current_source_dir, file), output_path=output_path_dir, step=2, display_object_info=True, model="./bball_model.pt", verbose=False, record=True, device="cuda")
+                    makes, attempts = detector.run()
+                    print(f"step is {detector.step}")
+                    print(f"Successful shots: {makes}/{attempts}")
                     print("-----------------")
 
         time.sleep(10)
